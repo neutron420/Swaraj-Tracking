@@ -226,21 +226,33 @@ export default function TrackingPage() {
   const [userCaptcha, setUserCaptcha] = useState("");
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [captchaError, setCaptchaError] = useState(false);
-  
-  // New state for verifying animation
   const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     generateCaptcha();
   }, []);
 
+  // NEW CAPTCHA LOGIC: 1 Lower, 2 Upper, 2 Number, 1 Symbol
   const generateCaptcha = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let result = "";
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setCaptchaCode(result);
+    const lowers = "abcdefghjkmnpqrstuvwxyz";
+    const uppers = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const numbers = "23456789";
+    const symbols = "!@#$%^&*";
+
+    const getRandom = (str: string) => str[Math.floor(Math.random() * str.length)];
+
+    let code = "";
+    code += getRandom(lowers); // 1 Lower
+    code += getRandom(uppers); // 1 Upper
+    code += getRandom(uppers); // 2 Upper
+    code += getRandom(numbers); // 1 Num
+    code += getRandom(numbers); // 2 Num
+    code += getRandom(symbols); // 1 Symbol
+
+    // Shuffle the characters so the pattern isn't predictable
+    code = code.split('').sort(() => Math.random() - 0.5).join('');
+
+    setCaptchaCode(code);
     setUserCaptcha("");
     setIsCaptchaVerified(false);
     setCaptchaError(false);
@@ -248,20 +260,21 @@ export default function TrackingPage() {
 
   const handleVerifyCaptcha = (e: React.MouseEvent) => {
     e.preventDefault();
-    setVerifying(true); // Start loading spinner
+    setVerifying(true); 
 
-    // 1. DELAY FOR 3 SECONDS
+    // 1.5 SECOND DELAY (1500ms)
     setTimeout(() => {
-      if (userCaptcha.toUpperCase() === captchaCode) {
+      // Exact match check (Case Sensitive)
+      if (userCaptcha === captchaCode) {
         setIsCaptchaVerified(true);
         setCaptchaError(false);
       } else {
         setCaptchaError(true);
-        setUserCaptcha("");
-        generateCaptcha(); 
+        setUserCaptcha(""); // Clear input
+        generateCaptcha();  // Force new captcha on failure
       }
-      setVerifying(false); // Stop loading spinner
-    }, 3000);
+      setVerifying(false); 
+    }, 1500);
   };
 
   const handleTrack = async (e: React.FormEvent) => {
@@ -274,7 +287,7 @@ export default function TrackingPage() {
     setResult(null);
 
     try {
-      // 2. DELAY FOR 3 SECONDS BEFORE FETCHING
+      // 3 SECOND DELAY FOR SEARCH
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       const res = await fetch(`/api/complaints/track/${trackingId}`);
@@ -333,7 +346,7 @@ export default function TrackingPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input
-                    placeholder="Ex: TRK8X92M1"
+                    placeholder="Ex: TRK-8X92M1"
                     value={trackingId}
                     onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
                     className="pl-9 font-mono uppercase tracking-wide bg-white shadow-sm border-slate-200"
@@ -368,12 +381,13 @@ export default function TrackingPage() {
                         <Input
                           placeholder="Enter code"
                           value={userCaptcha}
+                          // REMOVED UPPERCASE FORCING for case-sensitive input
                           onChange={(e) => {
-                            setUserCaptcha(e.target.value.toUpperCase());
+                            setUserCaptcha(e.target.value);
                             setCaptchaError(false);
                           }}
                           className={cn(
-                            "uppercase font-mono bg-white shadow-sm",
+                            "font-mono bg-white shadow-sm", // Removed 'uppercase' class
                             captchaError && "border-red-500 focus-visible:ring-red-500"
                           )}
                           maxLength={6}
@@ -401,7 +415,10 @@ export default function TrackingPage() {
                  )}
                  
                  {captchaError && (
-                   <p className="text-xs text-red-600 font-medium mt-1">Incorrect code. Please try again.</p>
+                   <p className="text-xs text-red-600 font-medium mt-1 flex items-center gap-1">
+                     <AlertCircle className="w-3 h-3" />
+                     Captcha invalid! Code refreshed.
+                   </p>
                  )}
               </div>
 
